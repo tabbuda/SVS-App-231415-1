@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Server Vault - School Manager</title>
+
+    <!-- ICONS & FONTS -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+      /* ================= THEME VARIABLES (MATCHING MAIN APP) ================= */
+      :root {
+        --primary: #6c63ff;
+        --primary-dark: #5a52d5;
+        --bg: #f0f2f5;
+        --card-bg: #ffffff;
+        --text: #2d3436;
+        --text-sec: #636e72;
+        --green: #00b894;
+        --border: #dfe6e9;
+        --shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      }
+
+      body.dark-mode {
+        --primary: #766dff;
+        --bg: #121212;
+        --card-bg: #1e1e1e;
+        --text: #dfe6e9;
+        --text-sec: #b2bec3;
+        --border: #333;
+      }
+
+      * {
+        box-sizing: border-box;
+        font-family: "Poppins", sans-serif;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        padding-bottom: 50px;
+      }
+
+      /* HEADER */
+      .header {
+        background: var(--card-bg);
+        padding: 15px 20px;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .header h3 {
+        margin: 0;
+        font-size: 18px;
+        color: var(--primary);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .icon-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--bg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: var(--text);
+        transition: 0.2s;
+      }
+      .icon-btn:active {
+        transform: scale(0.95);
+      }
+
+      /* CONTAINER */
+      .container {
+        padding: 20px;
+        max-width: 600px;
+        margin: 0 auto;
+      }
+
+      .info-card {
+        background: linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary-dark)
+        );
+        color: white;
+        padding: 20px;
+        border-radius: 16px;
+        margin-bottom: 25px;
+        box-shadow: 0 10px 20px rgba(108, 99, 255, 0.3);
+      }
+
+      /* LIST STYLES */
+      .list-header {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--text-sec);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .list-header::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+      }
+
+      .server-card {
+        background: var(--card-bg);
+        padding: 15px;
+        border-radius: 16px;
+        margin-bottom: 15px;
+        border: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        box-shadow: var(--shadow);
+        position: relative;
+      }
+
+      /* Permanent Indicator */
+      .server-card::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 15px;
+        bottom: 15px;
+        width: 4px;
+        background: var(--green);
+        border-radius: 0 4px 4px 0;
+      }
+
+      .card-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .s-name {
+        font-weight: 700;
+        font-size: 16px;
+        color: var(--text);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .badge {
+        font-size: 10px;
+        background: rgba(0, 184, 148, 0.1);
+        color: var(--green);
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: 600;
+      }
+
+      .url-box {
+        background: var(--bg);
+        padding: 10px;
+        border-radius: 8px;
+        font-family: monospace;
+        font-size: 11px;
+        color: var(--text-sec);
+        word-break: break-all;
+        border: 1px dashed var(--border);
+        user-select: all; /* Allows easy selection */
+      }
+
+      .btn-copy {
+        background: var(--text);
+        color: var(--bg);
+        width: 100%;
+        padding: 12px;
+        border: none;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 5px;
+        transition: 0.2s;
+      }
+      .btn-copy:active {
+        transform: scale(0.98);
+        opacity: 0.9;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- HEADER -->
+    <div class="header">
+      <div class="icon-btn" onclick="window.history.back()">
+        <i class="fa-solid fa-arrow-left"></i>
+      </div>
+      <h3><i class="fa-solid fa-vault"></i> Session Vault</h3>
+      <div class="icon-btn" onclick="toggleTheme()">
+        <i class="fa-solid fa-circle-half-stroke"></i>
+      </div>
+    </div>
+
+    <div class="container">
+      <!-- BANNER -->
+      <div class="info-card">
+        <h2 style="margin: 0 0 5px 0; font-size: 20px">
+          Secure Database Links
+        </h2>
+        <p style="margin: 0; font-size: 12px; opacity: 0.9">
+          These are permanent server links. They will not be deleted even if you
+          clear app data.
+        </p>
+      </div>
+
+      <div class="list-header">Available Sessions</div>
+      <div id="listContainer"></div>
+    </div>
+
+    <script>
+      // =========================================================
+      // 🟢 USER CONFIGURATION AREA (EDIT HERE)
+      // Yahan apne Asli Links Replace karein. Ye permanent rahenge.
+      // =========================================================
+
+      const SESSION_DATABASE = [
+        {
+          name: "Current Session (2025-26)",
+          url: "https://script.google.com/macros/s/AKfycbx_DEMO_LINK_1_REPLACE_ME/exec",
+        },
+        {
+          name: "Session 2024-25 (Archive)",
+          url: "https://script.google.com/macros/s/AKfycbx_DEMO_LINK_2_REPLACE_ME/exec",
+        },
+        {
+          name: "Session 2023-24 (Old)",
+          url: "https://script.google.com/macros/s/AKfycbx_DEMO_LINK_3_REPLACE_ME/exec",
+        },
+        {
+          name: "Test / Development Database",
+          url: "https://script.google.com/macros/s/AKfycbx_DEMO_LINK_4_REPLACE_ME/exec",
+        },
+        {
+          name: "Backup Server Link",
+          url: "https://script.google.com/macros/s/AKfycbx_DEMO_LINK_5_REPLACE_ME/exec",
+        },
+      ];
+
+      // =========================================================
+      // 🔴 END OF CONFIGURATION
+      // =========================================================
+
+      // Initialize
+      if (localStorage.getItem("theme") === "dark")
+        document.body.classList.add("dark-mode");
+      renderList();
+
+      function renderList() {
+        const container = document.getElementById("listContainer");
+        container.innerHTML = "";
+
+        SESSION_DATABASE.forEach((s) => {
+          let div = document.createElement("div");
+          div.className = "server-card";
+          div.innerHTML = `
+                    <div class="card-top">
+                        <span class="s-name">
+                            <i class="fa-solid fa-database" style="color:var(--primary); font-size:14px;"></i> 
+                            ${s.name}
+                        </span>
+                        <span class="badge">PERMANENT</span>
+                    </div>
+                    <div class="url-box">${s.url}</div>
+                    <button class="btn-copy" onclick="copyUrl('${s.url}')">
+                        <i class="fa-regular fa-copy"></i> Copy Link
+                    </button>
+                `;
+          container.appendChild(div);
+        });
+      }
+
+      function copyUrl(url) {
+        // Haptic Feedback (Android feel)
+        if (navigator.vibrate) navigator.vibrate(40);
+
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(url).then(() => showToast());
+        } else {
+          // Fallback for older browsers
+          const ta = document.createElement("textarea");
+          ta.value = url;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          document.body.removeChild(ta);
+          showToast();
+        }
+      }
+
+      function showToast() {
+        Swal.fire({
+          icon: "success",
+          title: "Link Copied!",
+          text: "Paste it in Switch Session menu",
+          toast: true,
+          position: "bottom",
+          timer: 2000,
+          showConfirmButton: false,
+          background: document.body.classList.contains("dark-mode")
+            ? "#333"
+            : "#fff",
+          color: document.body.classList.contains("dark-mode")
+            ? "#fff"
+            : "#000",
+        });
+      }
+
+      function toggleTheme() {
+        document.body.classList.toggle("dark-mode");
+        localStorage.setItem(
+          "theme",
+          document.body.classList.contains("dark-mode") ? "dark" : "light"
+        );
+        if (navigator.vibrate) navigator.vibrate(30);
+      }
+    </script>
+  </body>
+</html>

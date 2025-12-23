@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>School Manager Pro V6</title>
+    <!-- CSS Link -->
+    <link rel="stylesheet" href="style.css" />
+
+    <!-- Icons & Fonts -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#6C63FF" />
+    <link
+      rel="apple-touch-icon"
+      href="https://cdn-icons-png.flaticon.com/512/1089/1089129.png"
+    />
+    <!-- Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  </head>
+  <body>
+    <!-- 1. SIDEBAR MENU -->
+    <div id="sidebarOverlay" onclick="toggleMenu()"></div>
+    <div id="sidebar">
+      <div class="sidebar-header">
+        <h3>Menu</h3>
+        <div class="close-menu" onclick="toggleMenu()">
+          <i class="fa-solid fa-times"></i>
+        </div>
+      </div>
+      <div class="menu-item" onclick="navigateTo('screenWallet'); toggleMenu()">
+        <i class="fa-solid fa-chart-pie"></i> Analytics & Wallet
+      </div>
+      <div class="menu-item" onclick="openAdmissionForm(); toggleMenu()">
+        <i class="fa-solid fa-user-plus"></i> New Admission
+      </div>
+      <div class="menu-item" onclick="toggleDarkMode(); toggleMenu()">
+        <i class="fa-solid fa-moon"></i> Toggle Theme
+      </div>
+      <div
+        class="menu-item"
+        onclick="window.location.href='session_store.html'"
+      >
+        <i class="fa-solid fa-vault"></i> Session Vault
+      </div>
+      <div class="menu-item" onclick="openSessionManager(); toggleMenu()">
+        <i class="fa-solid fa-server"></i> Switch Session
+      </div>
+      <div
+        class="menu-item"
+        style="color: #ff7675; margin-top: auto"
+        onclick="handleLogout()"
+      >
+        <i class="fa-solid fa-power-off"></i> Logout
+      </div>
+    </div>
+
+    <!-- 2. LOGIN SCREEN -->
+    <div id="loginScreen">
+      <div class="bg-circle"></div>
+      <div class="bg-circle"></div>
+
+      <div class="login-card">
+        <div class="login-logo">
+          <i class="fa-solid fa-graduation-cap"></i>
+        </div>
+        <h1 class="login-title">Admin Portal</h1>
+        <p class="login-sub" id="schoolNameDisplay">Loading School...</p>
+
+        <div class="pin-wrapper">
+          <input
+            type="password"
+            id="pinInput"
+            placeholder="• • • •"
+            class="pin-input"
+            inputmode="numeric"
+            maxlength="4"
+          />
+        </div>
+
+        <button class="btn btn-primary" onclick="handleLogin()">
+          UNLOCK DASHBOARD
+        </button>
+        <p
+          id="loadingText"
+          style="
+            display: none;
+            margin-top: 15px;
+            color: var(--primary);
+            font-size: 12px;
+          "
+        >
+          <i class="fa fa-spinner fa-spin"></i> Verifying Credentials...
+        </p>
+      </div>
+    </div>
+
+    <!-- 3. MAIN APP CONTAINER -->
+    <div id="mainApp">
+      <!-- HEADER -->
+      <div class="app-header">
+        <div class="top-nav">
+          <div id="navIcon" class="nav-icon" onclick="handleNavClick()">
+            <i class="fa-solid fa-bars" id="menuIcon"></i>
+          </div>
+
+          <div class="header-titles">
+            <div id="headerTitle">Dashboard</div>
+          </div>
+
+          <div class="nav-actions">
+            <div id="syncBtn" class="nav-icon" onclick="syncData(true)">
+              <i class="fa-solid fa-cloud-arrow-down"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- SEARCH BOX (Only visible in Student List) -->
+        <div id="searchContainer">
+          <div class="search-wrapper">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input
+              type="text"
+              id="searchInput"
+              placeholder="Search by Name or ID..."
+              onkeyup="filterList()"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- SCREEN 1: CLASS DASHBOARD -->
+      <div id="screenClasses" class="screen active-screen">
+        <div class="banner-card">
+          <h3>Welcome Admin 👋</h3>
+          <p>Tap a class to view students or collect fees.</p>
+        </div>
+        <div id="classGrid" class="grid-container"></div>
+      </div>
+
+      <!-- SCREEN 2: STUDENT LIST -->
+      <div id="screenList" class="screen">
+        <div id="studentListContainer"></div>
+      </div>
+
+      <!-- SCREEN 3: STUDENT PROFILE & FEES -->
+      <div id="screenProfile" class="screen">
+        <div class="profile-header-card">
+          <div class="edit-btn-card" onclick="openEditForm()">
+            <i class="fa-solid fa-pencil"></i>
+          </div>
+          <div class="big-avatar">
+            <i class="fa-solid fa-user"></i>
+          </div>
+          <h2 class="profile-name" id="pName">Student Name</h2>
+          <p class="profile-details" id="pDetails">Details Here</p>
+          <div class="info-chips">
+            <span id="pClass">Class X</span>
+            <span id="pRoll">ID: ...</span>
+          </div>
+        </div>
+
+        <!-- TABS -->
+        <div class="profile-tabs">
+          <div class="tab active" onclick="switchTab('fees')" id="tabFees">
+            Fees Due
+          </div>
+          <div class="tab" onclick="switchTab('history')" id="tabHistory">
+            History
+          </div>
+        </div>
+
+        <!-- FEE LIST CONTENT -->
+        <div id="contentFees" class="tab-content">
+          <div class="total-due-banner">
+            <span>TOTAL OUTSTANDING</span>
+            <span id="pTotalDue">₹0</span>
+          </div>
+
+          <div id="feeLists">
+            <!-- Fee Items will be injected here via JS -->
+          </div>
+
+          <div style="margin-top: 30px; margin-bottom: 80px">
+            <button class="btn btn-dark" onclick="downloadStatement()">
+              <i class="fa-solid fa-file-pdf"></i> Download Statement
+            </button>
+          </div>
+        </div>
+
+        <!-- HISTORY CONTENT -->
+        <div id="contentHistory" class="tab-content" style="display: none">
+          <div id="historyList"></div>
+        </div>
+
+        <!-- FLOATING ACTION BUTTON (Added via JS in Phase 2, but placeholder here for structure) -->
+        <div id="fabPlaceholder"></div>
+      </div>
+
+      <!-- SCREEN 4: ANALYTICS WALLET -->
+      <div id="screenWallet" class="screen">
+        <div class="wallet-card">
+          <div style="font-size: 14px; opacity: 0.9">Today's Collection</div>
+          <div class="wallet-amount" id="dailyTotalAmount">₹0</div>
+          <div
+            style="
+              font-size: 12px;
+              margin-top: 5px;
+              background: rgba(255, 255, 255, 0.2);
+              display: inline-block;
+              padding: 2px 10px;
+              border-radius: 10px;
+            "
+            id="dailyCount"
+          >
+            0 Transactions
+          </div>
+        </div>
+
+        <!-- DYNAMIC STATS (Injected by JS) -->
+        <!-- <div id="extraStats"></div> -->
+
+        <div class="chart-container">
+          <h4
+            style="margin: 0 0 10px 0; font-size: 14px; color: var(--text-sec)"
+          >
+            Revenue Trend (7 Days)
+          </h4>
+          <canvas id="collectionChart"></canvas>
+        </div>
+
+        <h4 class="section-title" style="margin-top: 20px">
+          Recent Transactions
+        </h4>
+        <div id="walletHistoryList"></div>
+      </div>
+
+      <!-- SCREEN 5: ADMISSION FORM (PREMIUM REDESIGN) -->
+      <div id="screenForm" class="screen">
+        <div
+          class="app-header"
+          style="
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            padding: 15px 0;
+            background: var(--bg);
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.05);
+          "
+        >
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              gap: 15px;
+              padding: 0 15px;
+            "
+          >
+            <div class="nav-icon" onclick="goBack()">
+              <i class="fa-solid fa-arrow-left"></i>
+            </div>
+            <div
+              style="font-size: 20px; font-weight: 700; color: var(--text)"
+              id="formTitle"
+            >
+              New Admission
+            </div>
+          </div>
+        </div>
+
+        <div class="form-container" style="padding-bottom: 80px">
+          <input type="hidden" id="editRollNo" />
+
+          <!-- SECTION 1: ACADEMIC INFO -->
+          <div class="form-section-card">
+            <h4 class="form-section-title">
+              <i class="fa-solid fa-graduation-cap"></i> Academic Details
+            </h4>
+
+            <div class="form-grid-row">
+              <div class="form-group">
+                <label>Select Class</label>
+                <select
+                  id="inpClass"
+                  class="input-field premium-input"
+                ></select>
+              </div>
+
+              <div class="form-group">
+                <label>Student ID (Auto)</label>
+                <input
+                  type="text"
+                  id="inpAdm"
+                  class="input-field premium-input"
+                  readonly
+                  style="
+                    background: rgba(0, 0, 0, 0.05);
+                    font-weight: bold;
+                    color: var(--primary);
+                  "
+                  placeholder="Auto Generated"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION 2: PERSONAL INFO -->
+          <div class="form-section-card">
+            <h4 class="form-section-title">
+              <i class="fa-solid fa-user"></i> Personal Information
+            </h4>
+
+            <div class="form-group">
+              <label>Full Name</label>
+              <input
+                type="text"
+                id="inpName"
+                class="input-field premium-input"
+                placeholder="Enter Student Name"
+              />
+            </div>
+
+            <div class="form-grid-row">
+              <div class="form-group">
+                <label>Father's Name</label>
+                <input
+                  type="text"
+                  id="inpFather"
+                  class="input-field premium-input"
+                  placeholder="Father Name"
+                />
+              </div>
+
+              <div class="form-group">
+                <label>Phone Number</label>
+                <input
+                  type="tel"
+                  id="inpPhone"
+                  class="input-field premium-input"
+                  placeholder="10 Digit Mobile"
+                  maxlength="10"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION 3: FINANCIALS (OLD DUES ADDED) -->
+          <div class="form-section-card">
+            <h4 class="form-section-title">
+              <i class="fa-solid fa-wallet"></i> Financial Setup
+            </h4>
+
+            <div class="form-group">
+              <label style="color: var(--red); font-weight: 700"
+                >Previous Session Dues (Old Balance)</label
+              >
+              <div class="input-icon-wrapper">
+                <span class="curr-icon">₹</span>
+                <input
+                  type="number"
+                  id="inpOldDue"
+                  class="input-field premium-input"
+                  placeholder="0"
+                  style="font-weight: 700; color: var(--red)"
+                />
+              </div>
+              <small style="font-size: 10px; color: var(--text-sec)"
+                >If student has pending fees from last year, enter here. Else
+                0.</small
+              >
+            </div>
+          </div>
+
+          <!-- SECTION 4: TRANSPORT -->
+          <div class="transport-card premium-transport">
+            <div class="transport-header">
+              <i class="fa-solid fa-bus"></i> Transport Facility
+            </div>
+
+            <div class="form-grid-row">
+              <div class="form-group">
+                <label>Monthly Van Fee</label>
+                <input
+                  type="number"
+                  id="inpVan"
+                  class="input-field premium-input"
+                  placeholder="0 if None"
+                />
+              </div>
+
+              <div class="form-group">
+                <label>Stop Transport After</label>
+                <select id="inpVanStop" class="input-field premium-input">
+                  <option value="None">Not Availing</option>
+                  <option value="Full" selected>Full Session</option>
+                  <option disabled>──────────</option>
+                  <option value="Apr">April</option>
+                  <option value="May">May</option>
+                  <option value="Jun">June</option>
+                  <option value="Jul">July</option>
+                  <option value="Aug">August</option>
+                  <option value="Sep">September</option>
+                  <option value="Oct">October</option>
+                  <option value="Nov">November</option>
+                  <option value="Dec">December</option>
+                  <option value="Jan">January</option>
+                  <option value="Feb">February</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <button
+            class="btn btn-primary mt-20"
+            onclick="saveStudent()"
+            style="box-shadow: 0 10px 25px rgba(108, 99, 255, 0.4)"
+          >
+            <i class="fa-solid fa-check"></i> SAVE RECORD
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. PAYMENT MODAL (Modern) -->
+    <div
+      class="modal-overlay"
+      id="modalOverlay"
+      onclick="closeItemModal()"
+    ></div>
+    <div class="item-modal" id="itemModal">
+      <div class="drag-pill"></div>
+
+      <div style="text-align: center; margin-bottom: 15px">
+        <h3 style="margin: 0; font-size: 18px">Confirm Payment</h3>
+        <p style="color: #888; font-size: 12px; margin: 5px 0">
+          Review amount before proceeding
+        </p>
+      </div>
+
+      <div class="modal-info-card">
+        <div>
+          <span class="modal-label">SELECTED FEES</span>
+          <div
+            style="
+              font-weight: 600;
+              font-size: 12px;
+              opacity: 0.8;
+              margin-bottom: 5px;
+            "
+            id="bdHeadName"
+          >
+            ...
+          </div>
+        </div>
+        <div style="text-align: center">
+          <div class="modal-val-big" id="bdTotal">₹0</div>
+        </div>
+      </div>
+
+      <div
+        id="waiverSection"
+        style="
+          display: none;
+          margin-bottom: 15px;
+          background: #e3f2fd;
+          padding: 12px;
+          border-radius: 12px;
+          border: 1px dashed #2196f3;
+        "
+      >
+        <label
+          style="
+            font-size: 11px;
+            color: #1565c0;
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+          "
+          >ENTER DISCOUNT AMOUNT</label
+        >
+        <div style="display: flex; align-items: center">
+          <span style="font-size: 20px; color: #1565c0; margin-right: 5px"
+            >- ₹</span
+          >
+          <input
+            type="number"
+            id="waiverInput"
+            placeholder="0"
+            oninput="calculateFinalTotal()"
+            style="
+              width: 100%;
+              border: none;
+              background: transparent;
+              font-weight: 700;
+              color: #1565c0;
+              font-size: 24px;
+              outline: none;
+            "
+          />
+        </div>
+      </div>
+
+      <div class="pay-field-wrapper">
+        <span class="currency-symbol">₹</span>
+        <input
+          type="number"
+          id="payAmount"
+          class="pay-input-big"
+          placeholder="0"
+        />
+      </div>
+
+      <div
+        style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 15px;
+        "
+      >
+        <span class="discount-link" onclick="toggleWaiver()">
+          <i class="fa-solid fa-tags"></i> Add Discount
+        </span>
+        <span style="font-size: 12px; color: #888">
+          Net Payable: <b id="finalPayable" style="color: var(--text)">₹0</b>
+        </span>
+      </div>
+
+      <button class="btn btn-primary" onclick="submitItemPayment()">
+        CONFIRM & COLLECT CASH <i class="fa-solid fa-check-circle"></i>
+      </button>
+    </div>
+
+    <!-- 5. SUCCESS MODAL -->
+    <div class="modal-overlay" id="successModalOverlay"></div>
+    <div class="success-modal" id="successModal">
+      <div class="success-icon"><i class="fa-solid fa-check"></i></div>
+      <h3>Payment Received!</h3>
+      <p id="successMsg">Transaction saved.</p>
+      <button class="btn-whatsapp" onclick="sendWhatsApp()">
+        <i class="fa-brands fa-whatsapp"></i> Send Receipt
+      </button>
+      <button class="btn-close-modal" onclick="closeSuccessModal()">
+        Close
+      </button>
+    </div>
+
+    <!-- 6. SESSION MANAGER MODAL (PREMIUM LAYOUT) -->
+    <div class="modal-overlay" id="sessionOverlay"></div>
+    <div class="item-modal" id="sessionModal">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-server"></i> Session Vault</h3>
+        <div
+          class="close-btn"
+          onclick="closeSessionModal()"
+          style="font-size: 20px; color: var(--text-sec); cursor: pointer"
+        >
+          <i class="fa-solid fa-times"></i>
+        </div>
+      </div>
+
+      <!-- VIEW 1: LIST OF SESSIONS -->
+      <div id="sessionListView">
+        <div
+          id="sessionList"
+          style="max-height: 300px; overflow-y: auto; padding: 5px"
+        >
+          <!-- Sessions injected via JS -->
+        </div>
+
+        <button
+          class="btn btn-primary mt-20"
+          onclick="toggleAddSessionView(true)"
+          style="background: var(--text); color: white"
+        >
+          <i class="fa-solid fa-plus-circle"></i> Connect New Database
+        </button>
+      </div>
+
+      <!-- VIEW 2: ADD NEW FORM (Hidden by default) -->
+      <div id="addSessionForm" style="display: none; animation: fadeIn 0.3s">
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 1px dashed var(--border);
+            padding-bottom: 10px;
+          "
+        >
+          <h4 style="margin: 0; font-size: 14px; color: var(--primary)">
+            ADD NEW CONNECTION
+          </h4>
+          <span
+            onclick="toggleAddSessionView(false)"
+            style="
+              font-size: 12px;
+              color: var(--red);
+              cursor: pointer;
+              font-weight: 600;
+            "
+            >Cancel</span
+          >
+        </div>
+
+        <div class="form-group">
+          <label>Session Name (e.g. 2024-25)</label>
+          <input
+            type="text"
+            id="newSessionName"
+            class="input-field"
+            placeholder="Enter Name"
+          />
+        </div>
+
+        <div class="form-group">
+          <label>App Script URL (Web App)</label>
+          <input
+            type="text"
+            id="newSessionUrl"
+            class="input-field"
+            placeholder="Paste URL here..."
+          />
+        </div>
+
+        <div class="form-group">
+          <div
+            class="checkbox-wrapper"
+            style="
+              background: var(--input-bg);
+              padding: 12px;
+              border-radius: 12px;
+              display: flex;
+              align-items: center;
+              gap: 10px;
+            "
+          >
+            <input
+              type="checkbox"
+              id="isReadOnlyCheck"
+              style="width: 20px; height: 20px; accent-color: var(--primary)"
+            />
+            <div>
+              <div style="font-weight: 600; font-size: 14px">Archive Mode</div>
+              <div style="font-size: 11px; opacity: 0.6">
+                Check this for old years (Read Only)
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary mt-20" onclick="addNewSession()">
+          SAVE & CONNECT
+        </button>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("./sw.js")
+            .then(() => console.log("Service Worker Registered"))
+            .catch((err) => console.log("SW Fail:", err));
+        });
+      }
+    </script>
+  </body>
+</html>
