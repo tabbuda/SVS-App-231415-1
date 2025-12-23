@@ -40,12 +40,13 @@ function triggerHaptic() { if (navigator.vibrate) navigator.vibrate(30); }
 
 // ================= 3. NAVIGATION & UI =================
 
+// 🔴 3. UPDATE NAV CLICK
 function handleNavClick() {
     triggerHaptic();
     if (document.getElementById('screenClasses').classList.contains('active-screen')) {
         toggleMenu();
     } else {
-        goBack();
+        history.back();
     }
 }
 
@@ -62,7 +63,8 @@ function toggleMenu() {
     }
 }
 
-function navigateTo(screenId) {
+// 🔴 4. UPDATE NAVIGATE TO (HISTORY LOGIC ADDED)
+function navigateTo(screenId, addToHistory = true) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active-screen'));
     let screen = document.getElementById(screenId);
     if (screen) screen.classList.add('active-screen');
@@ -94,11 +96,19 @@ function navigateTo(screenId) {
         } else if (screenId === 'screenProfile') {
             search.style.display = 'none';
             title.innerText = "Student Profile";
+        } else if (screenId === 'screenForm') {
+            search.style.display = 'none';
+            // Title already set
         } else {
             search.style.display = 'none';
         }
     }
     window.scrollTo(0, 0);
+
+    // 🟢 IMPORTANT: Browser History me add karein
+    if (addToHistory) {
+        history.pushState({ screen: screenId }, screenId, "#" + screenId);
+    }
 }
 
 function goBack() {
@@ -124,8 +134,12 @@ function toggleDarkMode() {
 }
 
 // ================= 4. AUTH & INIT =================
+// ================= 4. AUTH & INIT =================
 
 window.onload = function() {
+    // 🔴 1. यह नई लाइन है (History Set करने के लिए)
+    history.replaceState({ screen: 'screenClasses' }, 'Home', '#home');
+
     loadLocalData();
     checkTheme();
     
@@ -144,6 +158,38 @@ window.onload = function() {
 
     if (navigator.onLine) syncData(false);
 };
+
+
+// ================= HISTORY HANDLING (MOBILE BACK BUTTON FIX) =================
+
+// 🔴 2. BACK BUTTON HANDLER (MOBILE FIX)
+window.addEventListener('popstate', function (event) {
+    // अगर कोई Modal खुला है तो उसे बंद करें
+    if (document.getElementById('itemModal').classList.contains('open')) {
+        closeItemModal();
+        history.pushState(null, null, location.href); // State push wapas karein taaki app band na ho
+        return;
+    }
+    if (document.getElementById('sessionModal').classList.contains('open')) {
+        closeSessionModal();
+        history.pushState(null, null, location.href);
+        return;
+    }
+    if (document.getElementById('sidebar').classList.contains('open')) {
+        toggleMenu();
+        history.pushState(null, null, location.href);
+        return;
+    }
+
+    // अगर स्क्रीन हिस्ट्री है, तो उस स्क्रीन पर जाएं
+    if (event.state && event.state.screen) {
+        navigateTo(event.state.screen, false); // false = history me add mat karo
+    } else {
+        // अगर होम पर हैं और फिर भी back दबाया, तो शायद user app band karna chahta hai
+        // Lekin safety ke liye Home par hi rakhein
+        navigateTo('screenClasses', false);
+    }
+});
 
 function injectDynamicStyles() {
     const style = document.createElement('style');
@@ -1154,7 +1200,7 @@ function downloadStatement() {
             body: histRows,
             theme: 'grid',
             headStyles: { fillColor: [100, 100, 100], fontSize: 8 },
-            styles: { fontSize: 8, textColor: 255 },
+            styles: { fontSize: 8, textColor: 80 },
             columnStyles: { 3: { halign: 'right' }, 4: { halign: 'right' } }
         });
     } else {
@@ -1168,6 +1214,7 @@ function downloadStatement() {
         doc.setPage(i);
         let h = doc.internal.pageSize.height;
         
+        doc.setDrawColor(200); doc.line(10, h - 25, 200, h - 25);
         doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(0);
         doc.text("Authorized Signatory", 170, h - 15, { align: 'center' });
         
@@ -1335,5 +1382,4 @@ async function verifyConnectionAndSwitch(index) {
         Swal.fire('Connection Failed', 'Could not connect to this database URL.', 'error');
         openSessionManager(); // Re-open modal if failed
     }
-
 }
