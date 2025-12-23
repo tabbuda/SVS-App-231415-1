@@ -1154,7 +1154,7 @@ function downloadStatement() {
             body: histRows,
             theme: 'grid',
             headStyles: { fillColor: [100, 100, 100], fontSize: 8 },
-            styles: { fontSize: 8, textColor: 80 },
+            styles: { fontSize: 8, textColor: 255 },
             columnStyles: { 3: { halign: 'right' }, 4: { halign: 'right' } }
         });
     } else {
@@ -1168,7 +1168,6 @@ function downloadStatement() {
         doc.setPage(i);
         let h = doc.internal.pageSize.height;
         
-        doc.setDrawColor(200); doc.line(10, h - 25, 200, h - 25);
         doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(0);
         doc.text("Authorized Signatory", 170, h - 15, { align: 'center' });
         
@@ -1336,4 +1335,5 @@ async function verifyConnectionAndSwitch(index) {
         Swal.fire('Connection Failed', 'Could not connect to this database URL.', 'error');
         openSessionManager(); // Re-open modal if failed
     }
+
 }
