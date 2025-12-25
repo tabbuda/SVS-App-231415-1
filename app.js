@@ -1,5 +1,7 @@
+let isPaymentProcessing = false;
+
 // NEW BACKEND URL (Provided by User)
-const DEFAULT_URL = "https://script.google.com/macros/s/AKfycbwfqrUsdMsp1KO6sXnA7v6WALGypfz7ffjWxvyEHhgzqQqtBJivh-JRHfzfDqoB6MgarA/exec"; 
+const DEFAULT_URL = "https://script.google.com/macros/s/AKfycbwfqrUsdMsp1KO6sXnA7v6WALGypfz7ffjWxvyEHhgzqQqtBJivh-JRHfzfDqoB6MgarA/exec";
 const ALL_MONTHS = ["Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar"];
 
 // Load Session Config
@@ -85,7 +87,7 @@ function navigateTo(screenId, addToHistory = true) {
     } else {
         icon.className = "fa-solid fa-arrow-left";
         syncBtn.style.display = 'none'; // Hide Sync on inner pages
-        
+
         if (screenId === 'screenList') {
             search.style.display = 'block';
             title.innerText = "Class " + currentClass;
@@ -136,13 +138,13 @@ function toggleDarkMode() {
 // ================= 4. AUTH & INIT =================
 // ================= 4. AUTH & INIT =================
 
-window.onload = function() {
+window.onload = function () {
     // 🔴 1. यह नई लाइन है (History Set करने के लिए)
     history.replaceState({ screen: 'screenClasses' }, 'Home', '#home');
 
     loadLocalData();
     checkTheme();
-    
+
     // Inject Styles for Checkboxes & Floating Button
     injectDynamicStyles();
 
@@ -218,7 +220,7 @@ function injectDynamicStyles() {
         .stat-label { font-size: 11px; opacity: 0.7; text-transform: uppercase; }
     `;
     document.head.appendChild(style);
-    
+
     // Create FAB Element
     const fab = document.createElement('div');
     fab.id = "fabPayContainer";
@@ -313,23 +315,23 @@ async function syncData(isManual = false) {
     try {
         // CHANGE HERE: Agar Manual Sync hai to 'force=true' bhejo
         let url = API_URL + "?action=getAllData";
-        if (isManual) url += "&force=true"; 
+        if (isManual) url += "&force=true";
 
         let res = await fetch(url);
         let data = await res.json();
-        
+
         if (data.status === 'success') {
             db = data;
             localStorage.setItem('schoolDB', JSON.stringify(db));
-            
+
             // UI Refresh
-            if(document.getElementById('screenClasses').classList.contains('active-screen')) renderClassGrid();
+            if (document.getElementById('screenClasses').classList.contains('active-screen')) renderClassGrid();
             if (document.getElementById('screenProfile').classList.contains('active-screen') && currentStudent) {
                 let sID = currentStudent.RollNo || currentStudent.AdmNo;
                 let updatedStd = db.students.find(s => (s.RollNo == sID || s.AdmNo == sID));
                 if (updatedStd) loadProfile(updatedStd);
             }
-            
+
             if (!IS_READ_ONLY) await processOfflineQueue();
             updateStatus('online');
             if (isManual) Swal.fire({ icon: 'success', title: 'Data Updated', toast: true, position: 'top', timer: 1500, showConfirmButton: false });
@@ -381,8 +383,8 @@ function renderStudentList(cls) {
     const list = db.students.filter(s => s.Class == cls);
     const container = document.getElementById('studentListContainer');
     container.innerHTML = "";
-    if(list.length === 0) container.innerHTML = "<div style='text-align:center; padding:20px; opacity:0.6'>No Students Found</div>";
-    
+    if (list.length === 0) container.innerHTML = "<div style='text-align:center; padding:20px; opacity:0.6'>No Students Found</div>";
+
     list.forEach(std => {
         let displayID = std.RollNo || std.AdmNo || "N/A";
         let div = document.createElement('div');
@@ -415,16 +417,16 @@ function loadProfile(student) {
     document.getElementById('pDetails').innerText = `${student.FatherName} | ${student.Phone}`;
     document.getElementById('pClass').innerText = student.Class;
     document.getElementById('pRoll').innerText = "ID: " + sID;
-    
+
     // Clear previous selection
     selectedFeeItems.clear();
     hideFloatingButton();
-    
+
     // Filter Transactions
     let allTrans = db.transactions.filter(t => t.RollNo == sID || t.AdmNo == sID);
     let report = generateFeeReport(student, allTrans);
     document.getElementById('pTotalDue').innerText = "₹" + report.totalDue.toLocaleString('en-IN');
-    
+
     renderCategorizedFees(report.items);
     switchTab('fees');
 }
@@ -439,10 +441,10 @@ function generateFeeReport(student, transactions) {
 
     if (!IS_READ_ONLY) {
         let q = JSON.parse(localStorage.getItem('offlineQ') || "[]");
-        q.forEach(x => { 
-            let tID = x.admNo || x.data?.RollNo; 
+        q.forEach(x => {
+            let tID = x.admNo || x.data?.RollNo;
             if (tID == sID && x.action == 'submitFee') {
-                totalCash += safeParse(x.amount) + safeParse(x.discount); 
+                totalCash += safeParse(x.amount) + safeParse(x.discount);
             }
         });
     }
@@ -454,14 +456,14 @@ function generateFeeReport(student, transactions) {
     function addItem(id, name, amount, section, meta = {}) {
         let cost = safeParse(amount);
         let status = 'Unpaid', paidAmt = 0, dueAmt = cost;
-        
+
         // Waterfall Logic ONLY for status calculation, not for payment enforcement
         if (cost === 0) { status = 'Paid'; dueAmt = 0; }
-        else if (remainingMoney >= cost) { 
-            status = 'Paid'; paidAmt = cost; dueAmt = 0; remainingMoney -= cost; 
+        else if (remainingMoney >= cost) {
+            status = 'Paid'; paidAmt = cost; dueAmt = 0; remainingMoney -= cost;
         }
-        else if (remainingMoney > 0) { 
-            status = 'Partial'; paidAmt = remainingMoney; dueAmt = cost - remainingMoney; remainingMoney = 0; 
+        else if (remainingMoney > 0) {
+            status = 'Partial'; paidAmt = remainingMoney; dueAmt = cost - remainingMoney; remainingMoney = 0;
         }
 
         items.push({ id, name, amount: cost, section, status, due: dueAmt, paid: paidAmt, ...meta });
@@ -475,7 +477,7 @@ function generateFeeReport(student, transactions) {
     let e1 = parseInt(db.settings.Exam1_Month) || 9;
     let e2 = parseInt(db.settings.Exam2_Month) || 12;
     let e3 = parseInt(db.settings.Exam3_Month) || 3;
-    
+
     // Transport Logic
     let vanStopIndex = 11;
     if (student.VanStopAfter === 'None') vanStopIndex = -1;
@@ -488,9 +490,9 @@ function generateFeeReport(student, transactions) {
         let calMonth = i < 9 ? (i + 4) : (i - 8);
         let fee = safeParse(rules.Tuition_Monthly);
         if (i <= vanStopIndex) fee += safeParse(student.VanFee_Monthly);
-        
+
         addItem(`fee_${m}`, `${m} Fee`, fee, "Monthly Fees", { monthIndex: i });
-        
+
         if (calMonth === e1) addItem(`exam_1`, "Quarterly Exam", rules.Exam1_Fee, "Exam Fees");
         if (calMonth === e2) addItem(`exam_2`, "Half Yearly Exam", rules.Exam2_Fee, "Exam Fees");
         if (calMonth === e3) addItem(`exam_3`, "Annual Exam", rules.Exam3_Fee, "Exam Fees");
@@ -506,14 +508,14 @@ function generateFeeReport(student, transactions) {
 function renderCategorizedFees(items) {
     const container = document.getElementById('feeLists');
     container.innerHTML = "";
-    
-    if (items.length === 0) { 
-        container.innerHTML = `<div style="text-align:center; padding:40px; opacity:0.5;"><i class="fa-solid fa-folder-open" style="font-size:40px;"></i><br>No Fees Due</div>`; 
-        return; 
+
+    if (items.length === 0) {
+        container.innerHTML = `<div style="text-align:center; padding:40px; opacity:0.5;"><i class="fa-solid fa-folder-open" style="font-size:40px;"></i><br>No Fees Due</div>`;
+        return;
     }
 
     let lastSection = "";
-    
+
     items.forEach((item, index) => {
         if (item.section !== lastSection) {
             container.innerHTML += `<div class="category-header">${item.section}</div>`;
@@ -522,13 +524,13 @@ function renderCategorizedFees(items) {
 
         let div = document.createElement('div');
         div.className = `modern-fee-card ${item.status.toLowerCase()}`;
-        if(item.status === 'Credit') { div.style.borderLeft = "4px solid #00b894"; div.style.background = "#e3fcef"; }
+        if (item.status === 'Credit') { div.style.borderLeft = "4px solid #00b894"; div.style.background = "#e3fcef"; }
 
         // Icon Logic
         let iconClass = 'fa-file-invoice-dollar';
         if (item.name.toLowerCase().includes('van')) iconClass = 'fa-bus';
         if (item.name.toLowerCase().includes('exam')) iconClass = 'fa-book-open';
-        
+
         // Checkbox Logic (New Feature)
         let leftContent = "";
         if (item.status === 'Paid' || item.status === 'Credit') {
@@ -552,23 +554,23 @@ function renderCategorizedFees(items) {
                 ${leftContent}
                 <div class="fee-info">
                     <div class="fee-title">${item.name}</div>
-                    <div class="fee-sub">${item.status === 'Partial' ? `Paid: ₹${item.paid}` : (item.status==='Credit'?'Surplus':'Due Now')}</div>
+                    <div class="fee-sub">${item.status === 'Partial' ? `Paid: ₹${item.paid}` : (item.status === 'Credit' ? 'Surplus' : 'Due Now')}</div>
                 </div>
             </div>
             <div>${statusHtml}</div>
         `;
-        
+
         // Click on card to toggle checkbox (UX)
-        if(item.status !== 'Paid' && item.status !== 'Credit') {
+        if (item.status !== 'Paid' && item.status !== 'Credit') {
             div.onclick = (e) => {
-                if(e.target.type !== 'checkbox') {
+                if (e.target.type !== 'checkbox') {
                     let chk = div.querySelector('input[type="checkbox"]');
                     chk.checked = !chk.checked;
                     handleFeeSelection(chk);
                 }
             };
         }
-        
+
         container.appendChild(div);
     });
 }
@@ -577,27 +579,27 @@ function renderCategorizedFees(items) {
 
 function handleFeeSelection(checkbox) {
     if (IS_READ_ONLY) return;
-    
+
     let amount = parseFloat(checkbox.dataset.amount);
     let name = checkbox.dataset.name;
-    
+
     if (checkbox.checked) {
         selectedFeeItems.add({ name, amount });
     } else {
         // Remove object from set based on name
-        selectedFeeItems.forEach(i => { if(i.name === name) selectedFeeItems.delete(i); });
+        selectedFeeItems.forEach(i => { if (i.name === name) selectedFeeItems.delete(i); });
     }
-    
+
     updateFloatingButton();
 }
 
 function updateFloatingButton() {
     let total = 0;
     selectedFeeItems.forEach(i => total += i.amount);
-    
+
     const fab = document.getElementById('fabPayContainer');
     document.getElementById('fabTotal').innerText = "₹" + total.toLocaleString('en-IN');
-    
+
     if (total > 0) fab.classList.add('visible');
     else fab.classList.remove('visible');
 }
@@ -611,22 +613,22 @@ function openMultiItemPayment() {
     let total = 0;
     let names = [];
     selectedFeeItems.forEach(i => { total += i.amount; names.push(i.name); });
-    
-    if(total === 0) return;
+
+    if (total === 0) return;
 
     // Setup Modal
     let displayName = names.length > 1 ? `Multiple (${names.length} Items)` : names[0];
-    if(names.length > 3) displayName = `${names[0]}, ${names[1]} +${names.length-2} more`;
+    if (names.length > 3) displayName = `${names[0]}, ${names[1]} +${names.length - 2} more`;
 
     selectedFeeItem = { name: displayName, due: total, fullList: names.join(", ") };
-    
+
     document.getElementById('bdHeadName').innerText = displayName;
     document.getElementById('bdTotal').innerText = "₹" + total;
     document.getElementById('payAmount').value = total;
     document.getElementById('finalPayable').innerText = "₹" + total;
     document.getElementById('waiverSection').style.display = 'none';
     document.getElementById('waiverInput').value = "";
-    
+
     document.getElementById('modalOverlay').style.display = 'block';
     setTimeout(() => document.getElementById('itemModal').classList.add('open'), 10);
 }
@@ -653,47 +655,80 @@ function calculateFinalTotal() {
 }
 
 function submitItemPayment() {
-    if (IS_READ_ONLY) return;
-    let amt = safeParse(document.getElementById('payAmount').value);
-    let waiver = safeParse(document.getElementById('waiverInput').value);
-    
+    // 1. अगर पहले से प्रोसेस चल रहा है या Read Only है, तो रुक जाओ (STOP DOUBLE TAP)
+    if (isPaymentProcessing || IS_READ_ONLY) return;
+
+    let payInput = document.getElementById('payAmount');
+    let waiverInput = document.getElementById('waiverInput');
+    let btn = document.querySelector('#itemModal .btn-primary'); // बटन को ढूंढें
+
+    let amt = safeParse(payInput.value);
+    let waiver = safeParse(waiverInput.value);
+
+    // Validation
     if (amt <= 0 && waiver <= 0) return Swal.fire('Error', 'Invalid Amount', 'warning');
-    
+
+    // 2. प्रोसेसिंग शुरू: फ्लैग सेट करें और बटन का हुलिया बदलें
+    isPaymentProcessing = true;
+    let originalBtnText = btn.innerHTML;
+    btn.innerHTML = `<i class="fa fa-circle-notch fa-spin"></i> Processing...`;
+    btn.style.opacity = "0.7";
+    btn.style.pointerEvents = "none"; // क्लिक बंद
+
+    // Modal बंद करें
     closeItemModal();
+
+    // डेटा तैयार करें
     let today = new Date().toISOString().split('T')[0];
     let feeHeadName = selectedFeeItem.fullList || selectedFeeItem.name;
     let sID = currentStudent.RollNo || currentStudent.AdmNo;
 
     let payload = {
-        action: 'submitFee', 
-        date: today, 
-        admNo: sID, 
+        action: 'submitFee',
+        date: today,
+        admNo: sID,
         studentName: currentStudent.Name,
-        feeHead: feeHeadName, 
-        amount: amt, 
-        discount: waiver, 
+        feeHead: feeHeadName,
+        amount: amt,
+        discount: waiver,
         collectedBy: 'Admin'
     };
 
+    // 3. Queue में डालें
     let q = JSON.parse(localStorage.getItem('offlineQ') || "[]");
     q.push(payload);
     localStorage.setItem('offlineQ', JSON.stringify(q));
     lastTransaction = payload;
 
+    // --- MAIN FIX FOR "JUMPING STATUS" ---
+    // हम यहाँ currentStudent.TotalPaid को मैन्युअली नहीं बढ़ाएंगे।
+    // generateFeeReport अपने आप (पुराना Total + Offline Queue) जोड़ लेगा।
+    // इससे "Double Counting" नहीं होगी।
+
+    // UI रिफ्रेश करें
+    loadProfile(currentStudent);
+
+    // Success Modal दिखाएं
     document.getElementById('successModalOverlay').style.display = 'block';
     document.getElementById('successModal').style.display = 'block';
     document.getElementById('successMsg').innerText = `Received ₹${amt}`;
-    
-    // Clear Selection
+
+    // Selection साफ़ करें
     selectedFeeItems.clear();
     hideFloatingButton();
+
+    // सर्वर को भेजने की कोशिश करें
     processOfflineQueue();
-    
-    // Refresh Profile immediately visually
-    if(currentStudent) {
-         currentStudent.TotalPaid = safeParse(currentStudent.TotalPaid) + amt + waiver;
-         loadProfile(currentStudent);
-    }
+
+    // 4. प्रोसेसिंग खत्म: बटन को वापस नार्मल करें (थोड़ी देर बाद, ताकि गलती से भी क्लिक न हो)
+    setTimeout(() => {
+        isPaymentProcessing = false;
+        if (btn) {
+            btn.innerHTML = originalBtnText; // पुराना टेक्स्ट वापस (CONFIRM & COLLECT CASH)
+            btn.style.opacity = "1";
+            btn.style.pointerEvents = "auto";
+        }
+    }, 1000);
 }
 
 function closeSuccessModal() {
@@ -706,7 +741,7 @@ function sendWhatsApp() {
     let receiptId = lastTransaction.receiptId || "PENDING";
     let dateStr = new Date().toLocaleDateString('en-GB');
     let schoolName = db.settings.School_Name || 'SCHOOL ADMIN';
-    
+
     let msg = `*${schoolName}*` +
         `%0A━━━━━━━━━━━━━━━━━━` +
         `%0A                    *PAYMENT RECEIPT*` +
@@ -721,7 +756,7 @@ function sendWhatsApp() {
         `%0A                    *Date:* ${dateStr}` +
         `%0A━━━━━━━━━━━━━━━━━━` +
         `%0A           _Payment Successfully Received_`;
-    
+
     let phone = "91" + currentStudent.Phone;
     window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
 }
@@ -731,16 +766,16 @@ function sendWhatsApp() {
 function loadWalletData() {
     let today = new Date().toISOString().split('T')[0];
     let allTrans = [...db.transactions];
-    
+
     // Merge Offline Data
     let q = JSON.parse(localStorage.getItem('offlineQ') || "[]");
     q.forEach(x => { if (x.action === 'submitFee') allTrans.push({ Date: x.date, AmountPaid: x.amount, StudentName: x.studentName }); });
-    
+
     let todayTotal = 0, todayCount = 0;
     let historyHtml = "";
 
     // Sort Descending
-    allTrans.sort((a,b) => new Date(b.Date) - new Date(a.Date));
+    allTrans.sort((a, b) => new Date(b.Date) - new Date(a.Date));
 
     // Stats
     let totalCollection = 0;
@@ -771,7 +806,7 @@ function loadWalletData() {
 
     // Render Additional Stats
     let walletCard = document.querySelector('.wallet-card');
-    if(!document.getElementById('extraStats')) {
+    if (!document.getElementById('extraStats')) {
         let statsDiv = document.createElement('div');
         statsDiv.id = "extraStats";
         statsDiv.className = "stat-grid mt-20";
@@ -783,7 +818,7 @@ function loadWalletData() {
             </div>
             <div class="stat-box">
                 <i class="fa-solid fa-sack-dollar" style="color:var(--green)"></i>
-                <div class="stat-val">₹${(totalCollection/100000).toFixed(2)}L</div>
+                <div class="stat-val">₹${(totalCollection / 100000).toFixed(2)}L</div>
                 <div class="stat-label">Total Rev</div>
             </div>
         `;
@@ -795,7 +830,7 @@ function loadWalletData() {
 
 function initChart(transactions) {
     const ctx = document.getElementById('collectionChart').getContext('2d');
-    
+
     // 1. Last 7 Days Collection
     let labels = [], data = [];
     for (let i = 6; i >= 0; i--) {
@@ -807,31 +842,31 @@ function initChart(transactions) {
     }
 
     if (chartInstance) chartInstance.destroy();
-    
+
     let color = document.body.classList.contains('dark-mode') ? '#fff' : '#00b894';
-    
-    chartInstance = new Chart(ctx, { 
+
+    chartInstance = new Chart(ctx, {
         type: 'bar', // Changed to Bar for better visual
-        data: { 
-            labels: labels, 
-            datasets: [{ 
-                label: 'Collection', 
-                data: data, 
-                backgroundColor: 'rgba(0, 184, 148, 0.5)', 
-                borderColor: color, 
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Collection',
+                data: data,
+                backgroundColor: 'rgba(0, 184, 148, 0.5)',
+                borderColor: color,
                 borderWidth: 1,
                 borderRadius: 5
-            }] 
-        }, 
-        options: { 
-            responsive: true, 
-            maintainAspectRatio: false, 
-            plugins: { legend: { display: false } }, 
-            scales: { 
-                x: { grid: { display: false } }, 
-                y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } } 
-            } 
-        } 
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { display: false } },
+                y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } }
+            }
+        }
     });
 }
 
@@ -842,10 +877,10 @@ function initChart(transactions) {
 function openAdmissionForm() {
     if (IS_READ_ONLY) return Swal.fire('Restricted', 'Read Only Mode', 'error');
     navigateTo('screenForm');
-    
+
     document.getElementById('formTitle').innerText = "New Admission";
     document.getElementById('editRollNo').value = "";
-    
+
     // Clear Fields
     document.getElementById('inpName').value = "";
     document.getElementById('inpFather').value = "";
@@ -855,7 +890,7 @@ function openAdmissionForm() {
     document.getElementById('inpAdm').value = "";
     document.getElementById('inpOldDue').value = ""; // Default Empty
     document.getElementById('inpAdm').placeholder = "Select Class first...";
-    
+
     // Populate Class Dropdown
     let clsSelect = document.getElementById('inpClass');
     clsSelect.innerHTML = "<option value='' disabled selected>Select Class</option>";
@@ -864,7 +899,7 @@ function openAdmissionForm() {
         let opt = document.createElement('option'); opt.value = c; opt.innerText = c; clsSelect.appendChild(opt);
     });
 
-    clsSelect.onchange = function() {
+    clsSelect.onchange = function () {
         document.getElementById('inpAdm').value = generateAutoRollNo(this.value);
     };
 }
@@ -873,18 +908,18 @@ function openEditForm() {
     if (IS_READ_ONLY) return Swal.fire('Restricted', 'Read Only Mode', 'error');
     if (!currentStudent) return;
     openAdmissionForm(); // Setup basic form
-    
+
     let sID = currentStudent.RollNo || currentStudent.AdmNo;
     document.getElementById('formTitle').innerText = "Edit Profile";
     document.getElementById('editRollNo').value = sID;
-    
+
     // Fill Data
     document.getElementById('inpName').value = currentStudent.Name;
     document.getElementById('inpFather').value = currentStudent.FatherName;
     document.getElementById('inpClass').value = currentStudent.Class;
     document.getElementById('inpPhone').value = currentStudent.Phone;
     document.getElementById('inpAdm').value = sID;
-    
+
     // Fill Financials
     document.getElementById('inpVan').value = currentStudent.VanFee_Monthly;
     document.getElementById('inpVanStop').value = currentStudent.VanStopAfter || "Full";
@@ -893,9 +928,9 @@ function openEditForm() {
 
 function saveStudent() {
     if (IS_READ_ONLY) return;
-    
+
     let isEdit = document.getElementById('editRollNo').value !== "";
-    
+
     // Collect Data
     let data = {
         RollNo: document.getElementById('inpAdm').value.toUpperCase(),
@@ -933,20 +968,20 @@ function saveStudent() {
 
     // Save & Sync
     localStorage.setItem('schoolDB', JSON.stringify(db));
-    
+
     let payload = { action: isEdit ? 'updateStudent' : 'addStudent', data: data };
     let q = JSON.parse(localStorage.getItem('offlineQ') || "[]");
     q.push(payload);
     localStorage.setItem('offlineQ', JSON.stringify(q));
-    
+
     Swal.fire({ icon: 'success', title: 'Saved Successfully', timer: 1200, showConfirmButton: false });
     processOfflineQueue();
-    
+
     if (isEdit) {
         loadProfile(data); // Refresh Profile
-    } else { 
-        renderClassGrid(); 
-        goBack(); 
+    } else {
+        renderClassGrid();
+        goBack();
     }
 }
 
@@ -978,19 +1013,19 @@ function renderHistory() {
     h.innerHTML = "";
     let sID = currentStudent.RollNo || currentStudent.AdmNo;
     let txs = db.transactions.filter(t => t.RollNo == sID || t.AdmNo == sID);
-    
+
     // Merge Offline
     let q = JSON.parse(localStorage.getItem('offlineQ') || "[]");
-    q.forEach(x => { 
-        if ((x.admNo == sID || (x.data && x.data.RollNo == sID)) && x.action == 'submitFee') 
-            txs.push({ Date: x.date, AmountPaid: x.amount, Waiver: x.discount, ReceiptNo: 'Pending' }); 
+    q.forEach(x => {
+        if ((x.admNo == sID || (x.data && x.data.RollNo == sID)) && x.action == 'submitFee')
+            txs.push({ Date: x.date, AmountPaid: x.amount, Waiver: x.discount, ReceiptNo: 'Pending' });
     });
-    
+
     txs.sort((a, b) => new Date(b.Date) - new Date(a.Date));
     if (txs.length === 0) h.innerHTML = "<div style='text-align:center; padding:20px; color:#888;'>No History</div>";
-    
+
     txs.forEach(t => {
-        let waiverHtml = (t.Waiver || t.Discount) > 0 ? `<div style="font-size:11px; color:#d35400;">Waiver: ₹${t.Waiver||t.Discount}</div>` : '';
+        let waiverHtml = (t.Waiver || t.Discount) > 0 ? `<div style="font-size:11px; color:#d35400;">Waiver: ₹${t.Waiver || t.Discount}</div>` : '';
         h.innerHTML += `
             <div class="student-card">
                 <div><div style="font-weight:600;">₹${t.AmountPaid}</div><div style="font-size:10px; color:#888;">${formatDate(t.Date)}</div></div>
@@ -1009,22 +1044,22 @@ function renderHistory() {
 
 function downloadStatement() {
     if (!currentStudent) return;
-    
+
     // Import jsPDF methods
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
-    
+
     // --- 1. CONFIG & COLORS ---
     const primaryColor = [44, 62, 80];    // Dark Blue
     const grayColor = [241, 242, 246];    // Light Gray
-    
+
     let schoolName = (db.settings.School_Name || "SCHOOL ADMIN").toUpperCase();
     let session = db.settings.Current_Session || "Current Session";
     let sID = currentStudent.RollNo || currentStudent.AdmNo;
 
     // --- 2. HEADER SECTION ---
     doc.setFillColor(...primaryColor);
-    doc.rect(0, 0, 210, 40, 'F'); 
+    doc.rect(0, 0, 210, 40, 'F');
 
     // School Name
     doc.setTextColor(255, 255, 255);
@@ -1045,7 +1080,7 @@ function downloadStatement() {
 
     doc.setTextColor(44, 62, 80);
     doc.setFontSize(10);
-    
+
     // Left Column
     doc.setFont("helvetica", "bold");
     doc.text("STUDENT NAME:", 20, 58);
@@ -1069,19 +1104,19 @@ function downloadStatement() {
     doc.text(new Date().toLocaleDateString('en-GB'), 155, 74);
 
     // --- 4. DATA COLLECTION & NORMALIZATION (THE FIX) ---
-    
+
     // Get Raw Transactions
     let rawTrans = db.transactions.filter(t => t.RollNo == sID || t.AdmNo == sID);
-    
+
     // Merge Offline Data
     if (!IS_READ_ONLY) {
         let q = JSON.parse(localStorage.getItem('offlineQ') || "[]");
-        q.forEach(x => { 
+        q.forEach(x => {
             let tID = x.admNo || x.data?.RollNo;
             if (tID == sID && x.action == 'submitFee') {
-                rawTrans.push({ 
-                    Date: x.date, AmountPaid: x.amount, Waiver: x.discount, 
-                    ReceiptNo: 'PENDING', feeHead: x.feeHead 
+                rawTrans.push({
+                    Date: x.date, AmountPaid: x.amount, Waiver: x.discount,
+                    ReceiptNo: 'PENDING', feeHead: x.feeHead
                 });
             }
         });
@@ -1103,49 +1138,49 @@ function downloadStatement() {
     standardizedTrans.sort((a, b) => new Date(a.date) - new Date(b.date));
 
     // --- 5. MAIN TABLE LOGIC (Smart Date Mapping) ---
-    
+
     // Use original report logic but mapped to standard trans
     // We recreate a simplified 'allTrans' for the helper function to understand
-    let reportTransHelper = standardizedTrans.map(t => ({ 
-        Date: t.date, AmountPaid: t.amount, Waiver: t.waiver, feeHead: t.head 
+    let reportTransHelper = standardizedTrans.map(t => ({
+        Date: t.date, AmountPaid: t.amount, Waiver: t.waiver, feeHead: t.head
     }));
-    
+
     let report = generateFeeReport(currentStudent, reportTransHelper);
-    let currentFeeStartMoney = 0; 
-    
+    let currentFeeStartMoney = 0;
+
     let rows = report.items.map(i => {
         let status = i.status;
         let finalDate = "-";
-        
+
         let itemCost = i.amount;
-        let amountPaidForThisItem = i.paid; 
-        
+        let amountPaidForThisItem = i.paid;
+
         if (amountPaidForThisItem > 0 || status === 'Paid') {
             let moneyNeeded = currentFeeStartMoney + amountPaidForThisItem;
             let moneyAccumulated = 0;
-            
+
             for (let t of standardizedTrans) {
                 let val = t.amount + t.waiver;
                 moneyAccumulated += val;
-                
+
                 if (moneyAccumulated > currentFeeStartMoney) {
                     finalDate = formatDate(t.date);
                 }
                 if (moneyAccumulated >= moneyNeeded) break;
             }
         }
-        
+
         currentFeeStartMoney += itemCost;
 
-        if(status === 'Credit') return [i.name, 'On Account', '', '', 'CR ' + i.amount];
-        if(status === 'Partial') status = `Partial (Pd: ${i.paid})`;
+        if (status === 'Credit') return [i.name, 'On Account', '', '', 'CR ' + i.amount];
+        if (status === 'Partial') status = `Partial (Pd: ${i.paid})`;
         let dueDisplay = i.due > 0 ? `${i.due}` : "-";
 
         return [
-            i.name, 
-            finalDate, 
-            { content: i.amount, styles: { halign: 'right' } }, 
-            status, 
+            i.name,
+            finalDate,
+            { content: i.amount, styles: { halign: 'right' } },
+            status,
             { content: dueDisplay, styles: { halign: 'right', fontStyle: 'bold' } }
         ];
     });
@@ -1173,23 +1208,23 @@ function downloadStatement() {
     });
 
     // --- 6. HISTORY TABLE (FIXED VISIBILITY) ---
-    
+
     let finalY = doc.lastAutoTable.finalY + 15;
     if (finalY > 250) { doc.addPage(); finalY = 20; }
 
     doc.setFontSize(12); doc.setFont("helvetica", "bold"); doc.setTextColor(...primaryColor);
     doc.text("RECENT TRANSACTION LOG", 14, finalY);
-    doc.setLineWidth(0.5); doc.line(14, finalY + 2, 80, finalY + 2); 
+    doc.setLineWidth(0.5); doc.line(14, finalY + 2, 80, finalY + 2);
 
     // Sort Newest First for Display
     standardizedTrans.sort((a, b) => new Date(b.date) - new Date(a.date));
-    
+
     // Map Standardized Data to Table Rows (Safe Access)
     let histRows = standardizedTrans.map(t => [
         formatDate(t.date),   // Using standardized 'date'
         t.receipt,            // Using standardized 'receipt'
         t.head,               // Using standardized 'head'
-        { content: t.amount, styles: { halign: 'right', fontStyle: 'bold', textColor: [0, 150, 50] } }, 
+        { content: t.amount, styles: { halign: 'right', fontStyle: 'bold', textColor: [0, 150, 50] } },
         { content: t.waiver || '-', styles: { halign: 'right' } }
     ]);
 
@@ -1210,14 +1245,14 @@ function downloadStatement() {
 
     // --- 7. FOOTER ---
     const pageCount = doc.internal.getNumberOfPages();
-    for(let i = 1; i <= pageCount; i++) {
+    for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
         let h = doc.internal.pageSize.height;
-        
+
         doc.setDrawColor(200); doc.line(10, h - 25, 200, h - 25);
         doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(0);
         doc.text("Authorized Signatory", 170, h - 15, { align: 'center' });
-        
+
         doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(150);
         doc.text("Computer generated fee statement.", 105, h - 10, { align: 'center' });
     }
@@ -1244,7 +1279,7 @@ function closeSessionModal() {
 function toggleAddSessionView(showForm) {
     let listView = document.getElementById('sessionListView');
     let formView = document.getElementById('addSessionForm');
-    
+
     if (showForm) {
         listView.style.display = 'none';
         formView.style.display = 'block';
@@ -1259,7 +1294,7 @@ function renderSessionList() {
     // Get Data
     let sessions = JSON.parse(localStorage.getItem('all_sessions')) || [];
     let currentActive = JSON.parse(localStorage.getItem('active_session')) || { name: "Default", url: DEFAULT_URL };
-    
+
     // Safety: Ensure at least default exists
     let hasDefault = sessions.some(s => s.url === DEFAULT_URL);
     if (!hasDefault) {
@@ -1272,25 +1307,25 @@ function renderSessionList() {
 
     sessions.forEach((s, index) => {
         let isActive = (s.url === currentActive.url && s.name === currentActive.name);
-        
+
         // Badge Logic
-        let badge = isActive 
-            ? '<span class="badge-live"><i class="fa-solid fa-circle" style="font-size:6px; vertical-align:middle"></i> LIVE</span>' 
+        let badge = isActive
+            ? '<span class="badge-live"><i class="fa-solid fa-circle" style="font-size:6px; vertical-align:middle"></i> LIVE</span>'
             : (s.isReadOnly ? '<span class="badge-archive">ARCHIVE</span>' : '');
 
         // Delete Button Logic (Don't delete active or default)
         let isDefault = (s.url === DEFAULT_URL);
-        let deleteBtn = (!isActive && !isDefault) 
-            ? `<button class="btn-delete" onclick="deleteSession(${index})"><i class="fa-solid fa-trash"></i></button>` 
+        let deleteBtn = (!isActive && !isDefault)
+            ? `<button class="btn-delete" onclick="deleteSession(${index})"><i class="fa-solid fa-trash"></i></button>`
             : '';
 
-        let switchBtn = !isActive 
-            ? `<button class="btn-switch" onclick="verifyConnectionAndSwitch(${index})">Switch</button>` 
+        let switchBtn = !isActive
+            ? `<button class="btn-switch" onclick="verifyConnectionAndSwitch(${index})">Switch</button>`
             : `<i class="fa-solid fa-circle-check" style="color:var(--green); font-size:20px; margin-right:5px;"></i>`;
 
         let div = document.createElement('div');
         div.className = `session-card ${isActive ? 'active-session' : ''}`;
-        
+
         div.innerHTML = `
             <div class="session-info">
                 <h4>${s.name}</h4>
@@ -1318,15 +1353,15 @@ function addNewSession() {
     if (!url || !url.startsWith('http')) return Swal.fire('Error', 'Invalid Script URL', 'warning');
 
     let sessions = JSON.parse(localStorage.getItem('all_sessions')) || [];
-    
+
     // Check Duplicate
-    if(sessions.some(s => s.name === name)) return Swal.fire('Error', 'Name already exists', 'warning');
+    if (sessions.some(s => s.name === name)) return Swal.fire('Error', 'Name already exists', 'warning');
 
     sessions.push({ name, url, isReadOnly });
     localStorage.setItem('all_sessions', JSON.stringify(sessions));
-    
+
     Swal.fire({ icon: 'success', title: 'Database Connected', timer: 1000, showConfirmButton: false });
-    
+
     document.getElementById('newSessionName').value = "";
     document.getElementById('newSessionUrl').value = "";
     toggleAddSessionView(false);
@@ -1355,7 +1390,7 @@ function deleteSession(index) {
 async function verifyConnectionAndSwitch(index) {
     triggerHaptic();
     closeSessionModal();
-    
+
     let sessions = JSON.parse(localStorage.getItem('all_sessions'));
     let selected = sessions[index];
 
@@ -1370,7 +1405,7 @@ async function verifyConnectionAndSwitch(index) {
         // Verify URL is valid by fetching data
         let res = await fetch(selected.url + "?action=getAllData");
         let data = await res.json();
-        
+
         if (data.status === 'success') {
             localStorage.setItem('active_session', JSON.stringify(selected));
             localStorage.removeItem('schoolDB'); // Clear old data
