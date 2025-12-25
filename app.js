@@ -508,15 +508,16 @@ function generateFeeReport(student, transactions) {
 function renderCategorizedFees(items) {
     const container = document.getElementById('feeLists');
     container.innerHTML = "";
-
-    if (items.length === 0) {
-        container.innerHTML = `<div style="text-align:center; padding:40px; opacity:0.5;"><i class="fa-solid fa-folder-open" style="font-size:40px;"></i><br>No Fees Due</div>`;
-        return;
+    
+    if (items.length === 0) { 
+        container.innerHTML = `<div style="text-align:center; padding:40px; opacity:0.5;"><i class="fa-solid fa-folder-open" style="font-size:40px;"></i><br>No Fees Due</div>`; 
+        return; 
     }
 
     let lastSection = "";
-
+    
     items.forEach((item, index) => {
+        // Section Header Logic
         if (item.section !== lastSection) {
             container.innerHTML += `<div class="category-header">${item.section}</div>`;
             lastSection = item.section;
@@ -524,19 +525,25 @@ function renderCategorizedFees(items) {
 
         let div = document.createElement('div');
         div.className = `modern-fee-card ${item.status.toLowerCase()}`;
-        if (item.status === 'Credit') { div.style.borderLeft = "4px solid #00b894"; div.style.background = "#e3fcef"; }
+        
+        // Credit styling
+        if(item.status === 'Credit') { 
+            div.style.borderLeft = "4px solid #00b894"; 
+            div.style.background = "#e3fcef"; 
+        }
 
-        // Icon Logic
-        let iconClass = 'fa-file-invoice-dollar';
+        // --- 1. ICON LOGIC ---
+        let iconClass = 'fa-file-invoice-dollar'; // Default
         if (item.name.toLowerCase().includes('van')) iconClass = 'fa-bus';
         if (item.name.toLowerCase().includes('exam')) iconClass = 'fa-book-open';
-
-        // Checkbox Logic (New Feature)
+        
+        // --- 2. LEFT CONTENT (Checkbox or Paid Icon) ---
         let leftContent = "";
         if (item.status === 'Paid' || item.status === 'Credit') {
-            leftContent = `<div class="fee-icon-circle"><i class="fa-solid fa-check"></i></div>`;
+            // अगर Paid है, तो ग्रीन टिक दिखाओ
+            leftContent = `<div class="fee-icon-circle" style="background:var(--green); color:white"><i class="fa-solid fa-check"></i></div>`;
         } else {
-            // Checkbox for Unpaid/Partial
+            // अगर Unpaid/Partial है, तो चेकबॉक्स दिखाओ
             leftContent = `<input type="checkbox" class="fee-checkbox" 
                 data-amount="${item.due}" 
                 data-name="${item.name}" 
@@ -544,33 +551,48 @@ function renderCategorizedFees(items) {
                 onchange="handleFeeSelection(this)">`;
         }
 
+        // --- 3. SUBTITLE LOGIC (SUDHAR IS HERE) ---
+        let subTitleText = "";
+        if (item.status === 'Paid') {
+            subTitleText = "Payment Complete"; // Paid के लिए
+        } else if (item.status === 'Partial') {
+            subTitleText = `Paid: ₹${item.paid}`; // Partial के लिए
+        } else if (item.status === 'Credit') {
+            subTitleText = "Advance Balance"; // Credit के लिए
+        } else {
+            subTitleText = "Due Now"; // सिर्फ Unpaid के लिए
+        }
+
+        // --- 4. RIGHT SIDE STATUS (Amount or Paid Text) ---
         let statusHtml = "";
         if (item.status === 'Paid') statusHtml = '<span style="color:var(--green); font-weight:bold; font-size:12px">PAID</span>';
         else if (item.status === 'Partial') statusHtml = `<span style="color:#e67e22; font-weight:bold; font-size:12px">BAL: ₹${item.due}</span>`;
+        else if (item.status === 'Credit') statusHtml = `<span style="color:var(--green); font-weight:bold; font-size:12px">CR: ₹${item.amount}</span>`;
         else statusHtml = `<span style="color:var(--red); font-weight:bold; font-size:12px">₹${item.due}</span>`;
 
+        // --- 5. FINAL HTML GENERATION ---
         div.innerHTML = `
             <div style="display:flex; align-items:center;">
                 ${leftContent}
                 <div class="fee-info">
                     <div class="fee-title">${item.name}</div>
-                    <div class="fee-sub">${item.status === 'Partial' ? `Paid: ₹${item.paid}` : (item.status === 'Credit' ? 'Surplus' : 'Due Now')}</div>
+                    <div class="fee-sub">${subTitleText}</div> <!-- Corrected Subtitle -->
                 </div>
             </div>
             <div>${statusHtml}</div>
         `;
-
-        // Click on card to toggle checkbox (UX)
-        if (item.status !== 'Paid' && item.status !== 'Credit') {
+        
+        // Click Logic (Checkbox Toggle)
+        if(item.status !== 'Paid' && item.status !== 'Credit') {
             div.onclick = (e) => {
-                if (e.target.type !== 'checkbox') {
+                if(e.target.type !== 'checkbox') {
                     let chk = div.querySelector('input[type="checkbox"]');
                     chk.checked = !chk.checked;
                     handleFeeSelection(chk);
                 }
             };
         }
-
+        
         container.appendChild(div);
     });
 }
